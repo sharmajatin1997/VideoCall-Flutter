@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 const String appId = '';
 
@@ -20,8 +21,7 @@ class _VideoCallState extends State<VideoCall>
     with SingleTickerProviderStateMixin {
 
   final String channelName = '';
-  final String rtcToken ='';
-
+  final String rtcToken = '';
   late RtcEngineEx engine;
 
   bool _isJoined = false;
@@ -46,10 +46,12 @@ class _VideoCallState extends State<VideoCall>
   Timer? _timeoutTimer;
   bool _isTimeout = false;
 
+  // 🔥 New: Audio player (v6)
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
   @override
   void initState() {
     super.initState();
-
     // Flip animation setup
     _flipController = AnimationController(
       vsync: this,
@@ -70,6 +72,9 @@ class _VideoCallState extends State<VideoCall>
 
     _startTimeoutTimer();
     _initAgora();
+
+    // start ringing sound
+    _playRinging();
   }
 
   void _startTimeoutTimer() {
@@ -80,6 +85,7 @@ class _VideoCallState extends State<VideoCall>
           _isTimeout = true;
           engine.leaveChannel();
           engine.release();
+          _stopRinging(); // stop ringing
         });
       }
     });
@@ -101,6 +107,9 @@ class _VideoCallState extends State<VideoCall>
       onUserJoined: (_, uid, __) {
         setState(() {
           if (!_remoteUids.contains(uid)) _remoteUids.add(uid);
+
+          // stop ringing when remote joins
+          _stopRinging();
         });
       },
       onUserOffline: (_, uid, __) {
@@ -130,6 +139,17 @@ class _VideoCallState extends State<VideoCall>
 
   Future<void> _checkPermissions() async {
     await [Permission.camera, Permission.microphone].request();
+  }
+
+  // RINGING SOUND FUNCTIONS (v6)
+  Future<void> _playRinging() async {
+    await _audioPlayer.setReleaseMode(ReleaseMode.loop);
+    await _audioPlayer.setSource(AssetSource('ring.mp3'));
+    await _audioPlayer.resume();
+  }
+
+  Future<void> _stopRinging() async {
+    await _audioPlayer.stop();
   }
 
   // ---------------- UI WIDGETS ----------------
@@ -208,22 +228,19 @@ class _VideoCallState extends State<VideoCall>
     );
   }
 
-  // 🔥 Timeout UI
+  // Timeout UI
   Widget _timeoutView() {
     return SizedBox(
       width: double.infinity,
       height: double.infinity,
       child: Stack(
         children: [
-          // Glass blur background
           BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Container(
               color: Colors.black.withOpacity(0.5),
             ),
           ),
-
-          // User info + error message
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -253,14 +270,13 @@ class _VideoCallState extends State<VideoCall>
               ],
             ),
           ),
-
-          // Cross button at bottom
           Positioned(
             bottom: 40,
             left: 0,
             right: 0,
             child: Center(
               child: FloatingActionButton(
+                heroTag: "timeoutClose",
                 backgroundColor: Colors.red,
                 onPressed: (){
                   Navigator.pop(context);
@@ -318,6 +334,7 @@ class _VideoCallState extends State<VideoCall>
       right: 0,
       child: Center(
         child: FloatingActionButton(
+          heroTag: "onlyEndCall",
           backgroundColor: Colors.red,
           onPressed: _endCall,
           child: const Icon(Icons.call_end, color: Colors.white),
@@ -335,6 +352,7 @@ class _VideoCallState extends State<VideoCall>
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           FloatingActionButton(
+            heroTag: "mic",
             backgroundColor: Colors.white,
             onPressed: () {
               _isMuted = !_isMuted;
@@ -347,11 +365,13 @@ class _VideoCallState extends State<VideoCall>
             ),
           ),
           FloatingActionButton(
+            heroTag: "switchCamera",
             backgroundColor: Colors.white,
             onPressed: () => _switchCamera(),
             child: const Icon(Icons.cameraswitch, color: Colors.black),
           ),
           FloatingActionButton(
+            heroTag: "endCall",
             backgroundColor: Colors.red,
             onPressed: _endCall,
             child: const Icon(Icons.call_end, color: Colors.white),
@@ -371,13 +391,12 @@ class _VideoCallState extends State<VideoCall>
     try {
       await engine.leaveChannel();
       await engine.release();
+      _stopRinging();
     } catch (e) {
       log(e.toString());
     }
     if (mounted) Navigator.pop(context);
   }
-
-  // ---------------- BUILD ----------------
 
   @override
   Widget build(BuildContext context) {
@@ -388,9 +407,7 @@ class _VideoCallState extends State<VideoCall>
           if (_isJoined) _localView(),
           if (_remoteUids.isEmpty && !_isTimeout) _ringingOverlay(),
           if (_remoteUids.isNotEmpty) _draggableRemoteView(),
-
           if (_isTimeout) _timeoutView(),
-
           if (!_isJoined && !_isTimeout) _onlyEndCall(),
           if (_isJoined && !_isTimeout) _fullControls(),
         ],
@@ -403,6 +420,7 @@ class _VideoCallState extends State<VideoCall>
     _ringingTimer.cancel();
     _timeoutTimer?.cancel();
     _flipController.dispose();
+    _audioPlayer.dispose();
     engine.leaveChannel();
     engine.release();
     super.dispose();
