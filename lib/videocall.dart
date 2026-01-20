@@ -5,7 +5,7 @@ import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-const String appId = 'b9ea68be6f124d4496dd1a2d79845cfb';
+const String appId = '';
 
 class VideoCall extends StatefulWidget {
   final bool isBroadcaster;
@@ -19,9 +19,8 @@ class VideoCall extends StatefulWidget {
 class _VideoCallState extends State<VideoCall>
     with SingleTickerProviderStateMixin {
 
-  final String channelName = 'Astroveda';
-  final String rtcToken =
-      '007eJxTYNhj5VVic3LefwXR/Rsn9xju6+372dtUe2Cy0qKIMOXnmw4pMCRZpiaaWSSlmqUZGpmkmJhYmqWkGCYapZhbWpiYJqcliQnkZzYEMjLs6uZgZmSAQBCfk8GxuKQovyw1JZGBAQBPAyIF';
+  final String channelName = '';
+  final String rtcToken ='';
 
   late RtcEngineEx engine;
 
