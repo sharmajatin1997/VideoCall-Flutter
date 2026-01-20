@@ -80,9 +80,9 @@ Add these to your `pubspec.yaml`:
 dependencies:
   flutter:
     sdk: flutter
-  agora_rtc_engine: ^6.3.2
+  agora_rtc_engine: ^6.5.1
   audioplayers: ^6.1.0
-  permission_handler: ^11.3.1
+  permission_handler: ^12.0.0+1
 ```
 
 ---
